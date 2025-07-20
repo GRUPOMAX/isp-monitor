@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Monitoramento de OS</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
+  <style>
+  .toastify {
+    font-family: 'Inter', sans-serif;
+  }
+  .dark .toastify {
+    background-color: #1f2937;
+    color: #ffffff;
+  }
+  .dark #saida, .dark #monitoramentos {
+    background-color: #374151;
+    color: #ffffff;
+  }
+  .dark input, .dark select, .dark button, .dark .checkbox-container {
+    background-color: #4b5563;
+    color: #ffffff;
+    border-color: #6b7280;
+    border-radius: 0.5rem;
+  }
+  .dark input:focus, .dark select:focus {
+    border-color: #60a5fa;
+    box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.5);
+  }
+  .dark .bg-blue-600 { background-color: #3b82f6; }
+  .dark .bg-green-600 { background-color: #34d399; }
+  .dark .hover\:bg-blue-700:hover { background-color: #2563eb; }
+  .dark .hover\:bg-green-700:hover { background-color: #10b981; }
+  .dark .hover\:bg-red-700:hover { background-color: #dc2626; }
+
+  /* Estilo fixo da sidebar */
+  .sidebar {
+    width: 250px;
+    transition: transform 0.3s ease-in-out;
+    z-index: 50;
+  }
+
+  /* MOBILE */
+  @media (max-width: 640px) {
+    body {
+      padding: 0.5rem;
+    }
+    .sidebar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      height: 100%;
+      transform: translateX(-100%);
+      z-index: 50;
+      background-color: #1f2937;
+      padding: 1rem;
+      box-shadow: 2px 0 10px rgba(0, 0, 0, 0.5);
+    }
+    .sidebar.active {
+      transform: translateX(0);
+    }
+    .menu-btn {
+      display: inline-block;
+      background-color: #3b82f6;
+      color: white;
+      padding: 0.5rem 1rem;
+      border-radius: 0.25rem;
+      cursor: pointer;
+      z-index: 60;
+      position: relative;
+    }
+    .menu-btn:hover {
+      background-color: #2563eb;
+    }
+    .w-34 {
+      width: 100% !important;
+    }
+    .flex-row {
+      flex-direction: column;
+    }
+    h1 {
+      font-size: 1.5rem;
+    }
+    h2 {
+      font-size: 1.25rem;
+    }
+    input, select, button {
+      font-size: 0.875rem;
+      padding: 0.5rem;
+    }
+    #form .space-y-4 > div {
+      margin-bottom: 0.5rem;
+    }
+    #submitBtn, #pararBtn {
+      padding: 0.75rem;
+    }
+    #saida {
+      min-height: 100px;
+      font-size: 0.875rem;
+    }
+    .flex.space-x-2 {
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    .checkbox-container {
+      margin-top: 0.5rem;
+    }
+    .w-3-4  {
+      width: 100% !important;
+    }
+  }
+
+  /* DESKTOP */
+  @media (min-width: 641px) {
+    .menu-btn {
+      display: none;
+    }
+    .sidebar {
+      position: relative;
+      transform: none !important;
+    }
+  }
+
+  /* Estilo da tela de login */
+  #loginOverlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.8);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 100;
+  }
+  #loginContainer {
+    background-color: #1f2937;
+    padding: 2rem;
+    border-radius: 0.5rem;
+    width: 100%;
+    max-width: 400px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+  }
+  </style>
+</head>
+<body class="bg-gray-900 text-white min-h-screen flex flex-row p-6">
+  <!-- Tela de Login -->
+  <div id="loginOverlay">
+    <div id="loginContainer">
+      <h2 class="text-xl font-semibold mb-4 text-center">Digite a Senha</h2>
+      <input type="password" id="passwordInput" placeholder="Senha" class="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 bg-gray-700 text-white border-gray-600 mb-4">
+      <button onclick="verificarSenha()" class="w-full bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700 transition-colors">Entrar</button>
+    </div>
+  </div>
+
+  <!-- Botão de Menu para Mobile -->
+  <div class="menu-btn mb-4 fixed top-4 left-4 z-50 bg-blue-600 px-4 py-2 rounded-md shadow-md" onclick="toggleMenu()">
+    ☰ Menu
+  </div>
+
+  <!-- Barra Lateral de Monitoramentos -->
+  <div id="monitoramentos" class="sidebar bg-gray-800 p-4 h-screen overflow-y-auto fixed top-0 left-0 transform -translate-x-full transition-transform duration-300 ease-in-out sm:relative sm:translate-x-0 sm:flex-shrink-0 sm:w-[250px] z-40">
+    <div class="sm:hidden flex justify-end mb-4">
+      <button onclick="toggleMenu()" class="text-white text-2xl">×</button>
+    </div>
+    <h3 class="text-lg font-semibold mb-4">Monitoramentos Ativos</h3>
+    <select id="selectMonitoramentos" class="w-full p-2 bg-gray-700 border border-gray-600 rounded-lg mb-2" onchange="selecionarMonitoramento()">
+      <option value="">Selecione um monitoramento</option>
+    </select>
+    <button id="pararBtn" onclick="pararMonitoramentoSelecionado()" class="w-full bg-red-600 text-white p-2 rounded-lg hover:bg-red-700 transition-colors">
+      Parar Monitoramento
+    </button>
+    <div class="checkbox-container mt-4 flex items-center">
+      <input type="checkbox" id="autoStopCheckbox" class="mr-2">
+      <label for="autoStopCheckbox" class="text-sm">Parar automaticamente ao fechar</label>
+    </div>
+  </div>
+
+  <!-- Conteúdo Principal -->
+  <div class="w-3-4 p-6">
+    <h1 class="text-2xl font-bold mb-6 flex items-center">
+      <span class="mr-2 text-yellow-400"></span> Monitoramento de Ordem de Serviço
+    </h1>
+    <form id="form" class="space-y-4 mb-6">
+      <div>
+        <input type="text" name="cpf" placeholder="CPF (somente números)" required class="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 bg-gray-700 text-white border-gray-600">
+      </div>
+      <div>
+        <input type="text" name="protocolo" placeholder="Protocolo OS" required class="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 bg-gray-700 text-white border-gray-600">
+      </div>
+      <div class="checkbox-container mt-2 flex items-center">
+        <input type="checkbox" id="usarOutroWhatsapp" class="mr-2" onchange="alternarCampoWhatsapp()">
+        <label for="usarOutroWhatsapp" class="text-sm">Notificar outro WhatsApp?</label>
+      </div>
+      <div id="whatsappGroup" style="display: none;">
+        <input type="text" name="whatsapp" id="whatsapp" placeholder="WhatsApp (ex: 5527999999999)" class="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 bg-gray-700 text-white border-gray-600" pattern="\d{12,13}" title="WhatsApp deve conter o código do país (ex: 5527999999999)">
+      </div>
+      <button type="button" id="submitBtn" onclick="submitForm()" class="w-full bg-blue-600 mt-4 text-white p-3 rounded-lg hover:bg-blue-700 transition-colors">
+        Iniciar Monitoramento
+      </button>
+    </form>
+    <hr class="border-gray-600 mb-6">
+    <h2 class="text-xl font-semibold mb-4 flex items-center">
+      <span class="mr-2 text-blue-400"></span> Status Atual
+    </h2>
+    <div class="flex space-x-2 mb-4">
+      <input type="text" id="protocoloConsulta" placeholder="Protocolo para consultar" class="flex-1 p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 bg-gray-700 text-white border-gray-600">
+      <button onclick="buscar()" class="bg-green-600 text-white p-3 rounded-lg hover:bg-green-700 transition-colors">
+        Buscar Status
+      </button>
+    </div>
+    <div id="saida" class="bg-gray-700 p-4 rounded-lg border border-gray-600 text-white min-h-[150px]">
+      Nenhum dado consultado ainda.
+    </div>
+  </div>
+
+  <script>
+    // Função para verificar a senha
+    function verificarSenha() {
+      const passwordInput = document.getElementById('passwordInput').value;
+      const correctPassword = 'Password@1234+-'; // 
+      const loginOverlay = document.getElementById('loginOverlay');
+      
+      if (passwordInput === correctPassword) {
+        loginOverlay.style.display = 'none';
+      } else {
+        Toastify({
+          text: 'Senha incorreta!',
+          duration: 3000,
+          gravity: 'top',
+          position: 'right',
+          backgroundColor: '#ef4444',
+          className: 'font-semibold'
+        }).showToast();
+        document.getElementById('passwordInput').value = '';
+      }
+    }
+
+    // Permitir login com a tecla Enter
+    document.getElementById('passwordInput').addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') {
+        verificarSenha();
+      }
+    });
+
+    // Atualização da lista de monitoramentos a cada 4 segundos
+    setInterval(async () => {
+      try {
+        const res = await fetch('https://isp-monitor.nexusnerds.com.br/monitoramentos');
+        const arquivos = await res.json();
+        const protocolosAtuais = Array.from(monitoramentosAtivos.keys());
+        const protocolosExistentes = arquivos.map(arquivo =>
+          arquivo.replace('monitoramento_', '').replace('.json', '')
+        );
+
+        // Remover os que não existem mais
+        for (const protocolo of protocolosAtuais) {
+          if (!protocolosExistentes.includes(protocolo)) {
+            clearInterval(monitoramentosAtivos.get(protocolo)?.intervaloId);
+            monitoramentosAtivos.delete(protocolo);
+            if (selectedProtocolo === protocolo) {
+              selectedProtocolo = '';
+              document.getElementById('saida').textContent = 'Monitoramento finalizado.';
+            }
+          }
+        }
+        atualizarListaMonitoramentos();
+      } catch (err) {
+        console.error('Erro ao atualizar monitoramentos:', err);
+      }
+    }, 4000);
+
+    // Função para exibir notificações
+    function mostrarNotificacao(mensagem, tipo = 'info') {
+      Toastify({
+        text: mensagem,
+        duration: 3000,
+        gravity: 'top',
+        position: 'right',
+        backgroundColor: tipo === 'error' ? '#ef4444' : '#3b82f6',
+        className: 'font-semibold'
+      }).showToast();
+    }
+
+    // Função para submeter o formulário
+    async function submitForm() {
+      const form = document.getElementById('form');
+      const submitBtn = document.getElementById('submitBtn');
+      const usarOutroWhatsapp = document.getElementById('usarOutroWhatsapp').checked;
+      const whatsapp = usarOutroWhatsapp ? form.whatsapp.value.trim() : '';
+      const formData = {
+        cpf: form.cpf.value.trim(),
+        protocolo: form.protocolo.value.trim(),
+        whatsapp
+      };
+
+      if (!/^\d{11}$/.test(formData.cpf)) {
+        mostrarNotificacao('CPF deve conter 11 dígitos numéricos.', 'error');
+        return;
+      }
+      if (usarOutroWhatsapp && !/^\d{12,13}$/.test(whatsapp)) {
+        mostrarNotificacao('WhatsApp deve conter o código do país (ex: 5527999999999).', 'error');
+        return;
+      }
+
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Enviando...';
+
+      try {
+        const res = await fetch('https://isp-monitor.nexusnerds.com.br/iniciar-monitoramento', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(formData)
+        });
+        const json = await res.json();
+        mostrarNotificacao(json.status || json.error || 'Erro desconhecido', json.error ? 'error' : 'info');
+        form.cpf.value = formData.cpf;
+        form.protocolo.value = formData.protocolo;
+        form.whatsapp.value = formData.whatsapp;
+        if (json.status) {
+          // 👉 Mostra notificação antes de começar o polling
+          mostrarNotificacao(`⏳ Aguardando monitoramento ${formData.protocolo} ficar pronto...`, 'info');
+
+          const pronto = await esperarArquivoJSON(formData.protocolo, 60, 1000);
+          if (pronto) {
+            mostrarNotificacao(`✅ Monitoramento ${formData.protocolo} iniciado com sucesso`, 'info');
+            iniciarMonitoramento(formData.protocolo);
+          } else {
+            mostrarNotificacao(`❌ Falha ao iniciar monitoramento ${formData.protocolo} (timeout)`, 'error');
+          }
+        }
+
+      } catch (err) {
+        mostrarNotificacao(`Erro ao iniciar monitoramento: ${err.message}`, 'error');
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Iniciar Monitoramento';
+      }
+    }
+
+    // Debounce function
+    function debounce(func, wait) {
+      let timeout;
+      return function (...args) {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => func.apply(this, args), wait);
+      };
+    }
+
+    // Gerenciar monitoramentos ativos
+    const monitoramentosAtivos = new Map();
+    let selectedProtocolo = '';
+    const autoStopTimers = new Map();
+
+    function iniciarMonitoramento(protocolo) {
+      if (!monitoramentosAtivos.has(protocolo)) {
+        monitoramentosAtivos.set(protocolo, {
+          intervaloId: null,
+          json: null,
+        });
+        atualizarListaMonitoramentos();
+      }
+      if (monitoramentosAtivos.get(protocolo)?.intervaloId) return;
+      monitorarStatus(protocolo);
+    }
+
+    function monitorarStatus(protocolo) {
+      const intervaloMonitoramento = 3000;
+      let tentativas = 0;
+      const maxTentativas = 10;
+      const autoStopCheckbox = document.getElementById('autoStopCheckbox');
+      const intervaloId = setInterval(async () => {
+        tentativas++;
+        try {
+          const res = await fetch(`https://isp-monitor.nexusnerds.com.br/monitoramento/${protocolo}`);
+          if (!res.ok) {
+            console.warn(`⚠️ Monitoramento ${protocolo} retornou status ${res.status}, interrompendo...`);
+            clearInterval(intervaloId);
+            monitoramentosAtivos.delete(protocolo);
+            if (selectedProtocolo === protocolo) {
+              document.getElementById('saida').textContent = 'Monitoramento finalizado.';
+            }
+            atualizarListaMonitoramentos();
+            return;
+          }
+          const json = await res.json();
+          //console.log('Resposta da API:', json);
+          const anterior = monitoramentosAtivos.get(protocolo);
+          const ultimoJson = anterior?.json || null;
+          if (JSON.stringify(json) !== JSON.stringify(ultimoJson)) {
+            monitoramentosAtivos.set(protocolo, {
+              intervaloId,
+              json
+            });
+            if (selectedProtocolo === protocolo) {
+              selecionarMonitoramento();
+            }
+            if (autoStopCheckbox.checked && json.situacao === 'Fechado' && !autoStopTimers.has(protocolo)) {
+              const timerId = setTimeout(() => {
+                pararMonitoramentoSelecionado(protocolo);
+                mostrarNotificacao(`Monitoramento de ${protocolo} parado automaticamente após 1 minuto.`, 'info');
+                autoStopTimers.delete(protocolo);
+              }, 60000);
+              autoStopTimers.set(protocolo, timerId);
+            }
+            atualizarListaMonitoramentos();
+          }
+        } catch (err) {
+          console.error('Erro na requisição:', err);
+          if (tentativas === maxTentativas) {
+            clearInterval(intervaloId);
+            monitoramentosAtivos.delete(protocolo);
+            if (selectedProtocolo === protocolo) {
+              document.getElementById('saida').textContent = 'Nenhum dado consultado ainda.';
+            }
+            atualizarListaMonitoramentos();
+          }
+        }
+      }, intervaloMonitoramento);
+      const atual = monitoramentosAtivos.get(protocolo);
+      monitoramentosAtivos.set(protocolo, { ...atual, intervaloId });
+    }
+
+    function atualizarListaMonitoramentos() {
+      const select = document.getElementById('selectMonitoramentos');
+      const pararBtn = document.getElementById('pararBtn');
+      const selectedValue = select.value;
+      select.innerHTML = '<option value="">Selecione um monitoramento</option>';
+      monitoramentosAtivos.forEach((data, protocolo) => {
+        const option = document.createElement('option');
+        option.value = protocolo;
+        option.textContent = `${protocolo} - ${data?.json ? 'Ativo' : 'Aguardando'}`;
+        select.appendChild(option);
+      });
+      select.value = selectedValue;
+      pararBtn.disabled = !select.value;
+      if (select.value) selecionarMonitoramento();
+    }
+
+    function selecionarMonitoramento() {
+      const select = document.getElementById('selectMonitoramentos');
+      const pararBtn = document.getElementById('pararBtn');
+      selectedProtocolo = select.value;
+      pararBtn.disabled = !selectedProtocolo;
+      const saida = document.getElementById('saida');
+      if (selectedProtocolo) {
+        const data = monitoramentosAtivos.get(selectedProtocolo)?.json;
+        if (data) {
+          saida.innerHTML = `
+            <div class="space-y-2">
+              <p class="font-medium"><strong>📋 Ordem de Serviço:</strong> ${selectedProtocolo}</p>
+              <p><strong>👤 Cliente:</strong> ${data.cliente || 'N/A'}</p>
+              <p><strong>📌 Situação:</strong> ${data.situacao || 'Aguardando'}</p>
+              <p><strong>📅 Abertura:</strong> ${data.data_abertura || 'N/A'}</p>
+              <p><strong>✅ Fechamento:</strong> ${data.data_fechamento || 'N/A'}</p>
+              <p><strong>📝 Última descrição:</strong> ${data.ultima_descricao?.texto || 'Nenhuma'} (${data.ultima_descricao?.data || ''} - ${data.ultima_descricao?.operador || ''})</p>
+              <p><strong>🕒 Atualizado em:</strong> ${data.atualizado_em || 'N/A'}</p>
+            </div>
+          `;
+        } else {
+          saida.innerHTML = '<div class="flex items-center"><svg class="animate-spin h-5 w-5 mr-2 text-blue-400" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8h8a8 8 0 01-8 8 8 8 0 01-8-8z"></path></svg> Aguardando dados...</div>';
+        }
+      } else {
+        saida.textContent = 'Nenhum dado consultado ainda.';
+      }
+    }
+
+    async function pararMonitoramentoSelecionado(protocolo) {
+      const select = document.getElementById('selectMonitoramentos');
+      if (!protocolo && !select.value) return;
+      try {
+        const res = await fetch(`https://isp-monitor.nexusnerds.com.br/parar-monitoramento/${protocolo || select.value}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        const json = await res.json();
+        mostrarNotificacao(json.status, 'info');
+        clearInterval(monitoramentosAtivos.get(protocolo || select.value)?.intervaloId);
+        monitoramentosAtivos.delete(protocolo || select.value);
+        selectedProtocolo = '';
+        atualizarListaMonitoramentos();
+        document.getElementById('saida').textContent = 'Nenhum dado consultado ainda.';
+      } catch (err) {
+        mostrarNotificacao(`Erro ao parar monitoramento: ${err.message}`, 'error');
+      }
+    }
+
+    async function buscar() {
+      const protocoloConsulta = document.getElementById('protocoloConsulta').value.trim();
+      if (!protocoloConsulta) {
+        document.getElementById('saida').textContent = '⚠️ Digite um protocolo para consultar.';
+        return;
+      }
+      iniciarMonitoramento(protocoloConsulta);
+    }
+
+    async function esperarArquivoJSON(protocolo, tentativas = 10, intervalo = 1000) {
+      for (let i = 0; i < tentativas; i++) {
+        try {
+          const res = await fetch(`https://isp-monitor.nexusnerds.com.br/monitoramento/${protocolo}`);
+          if (res.ok) return true;
+        } catch (_) {}
+        await new Promise(r => setTimeout(r, intervalo));
+      }
+      return false;
+    }
+
+    async function carregarMonitoramentosExistentes() {
+      try {
+        const res = await fetch('https://isp-monitor.nexusnerds.com.br/monitoramentos');
+        const arquivos = await res.json();
+        arquivos.forEach(arquivo => {
+          const protocolo = arquivo.replace('monitoramento_', '').replace('.json', '');
+          iniciarMonitoramento(protocolo);
+        });
+      } catch (err) {
+        console.error('Erro ao buscar monitoramentos existentes:', err);
+      }
+    }
+
+    carregarMonitoramentosExistentes();
+
+    document.getElementById('protocoloConsulta').addEventListener('input', debounce((e) => {
+      const protocolo = e.target.value.trim();
+      if (protocolo) {
+        iniciarMonitoramento(protocolo);
+      } else {
+        monitoramentosAtivos.forEach((data, proto) => {
+          if (proto !== protocolo) clearInterval(data.intervaloId);
+        });
+        monitoramentosAtivos.clear();
+        selectedProtocolo = '';
+        atualizarListaMonitoramentos();
+        document.getElementById('saida').textContent = 'Nenhum dado consultado ainda.';
+      }
+    }, 1000));
+
+    function toggleMenu() {
+      const monitoramentos = document.getElementById('monitoramentos');
+      monitoramentos.classList.toggle('active');
+    }
+
+    function alternarCampoWhatsapp() {
+      const checkbox = document.getElementById('usarOutroWhatsapp');
+      const grupo = document.getElementById('whatsappGroup');
+      if (checkbox.checked) {
+        grupo.style.display = 'block';
+      } else {
+        grupo.style.display = 'none';
+        document.getElementById('whatsapp').value = '';
+      }
+    }
+  </script>
+</body>
+</html>
