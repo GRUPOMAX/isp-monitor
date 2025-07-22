@@ -186,7 +186,7 @@
     </h1>
     <form id="form" class="space-y-4 mb-6">
       <div>
-        <input type="text" name="cpf" placeholder="CPF (somente números)" required class="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 bg-gray-700 text-white border-gray-600">
+        <input type="text" name="cpf" id="cpfInput" placeholder="CPF (com ou sem pontos)" required class="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 bg-gray-700 text-white border-gray-600">
       </div>
       <div>
         <input type="text" name="protocolo" placeholder="Protocolo OS" required class="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 bg-gray-700 text-white border-gray-600">
@@ -218,6 +218,12 @@
   </div>
 
   <script>
+
+    document.getElementById('cpfInput').addEventListener('input', function(e) {
+      let value = e.target.value;
+      e.target.value = value.replace(/[^\d]/g, '');
+    });
+    
     // Função para verificar a senha
     function verificarSenha() {
       const passwordInput = document.getElementById('passwordInput').value;
